@@ -405,6 +405,23 @@ struct PipelineCache::ProgramCache {
 		auto result = ShaderRecompiler::CompileProgram(std::move(translated), options,
 		                                               specialization, push_data_start_dword);
 		DumpShaderOriginal(stage_name, options.shader_hash, code);
+
+		// Astro Bot (PPSA21564): avoid device loss from oversized compute kernels.
+		static const bool kDropOversizedCompute = [] {
+			std::string id;
+			return Loader::SystemContentParamSfoGetString("TITLE_ID", &id) && id == "PPSA21564";
+		}();
+		if (kDropOversizedCompute && options.stage == ShaderType::Compute &&
+		    result.spirv.size() > 40000) {
+			static std::atomic<uint32_t> logged {0};
+			if (logged.fetch_add(1, std::memory_order_relaxed) < 16) {
+				LOGF("PipelineCache: dropping oversized %s shader hash=0x%016" PRIx64
+				     " words=%zu (PPSA21564 degraded bindless SRT -> device loss)\n",
+				     stage_name, options.shader_hash, result.spirv.size());
+			}
+			return {};
+		}
+
 		if (!ValidateShaderSpirv(options.dump_label, options.shader_hash, result.spirv)) {
 			DumpShaderSpirv(stage_name, options.shader_hash, result.spirv);
 			EXIT("%s failed hash=0x%016" PRIx64 ": SPIR-V validation failed\n", options.dump_label,
