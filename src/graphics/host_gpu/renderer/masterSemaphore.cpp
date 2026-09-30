@@ -119,6 +119,7 @@ void MasterSemaphore::Wait(uint64_t tick) {
 	const auto result = m_graphics.device.waitSemaphores(&wait_info, UINT64_MAX);
 	if (result == vk::Result::eErrorDeviceLost) {
 		ReportDeviceFault(m_graphics);
+		Log::Flush();
 	}
 	if (result != vk::Result::eSuccess) {
 		EXIT("MasterSemaphore::Wait: vkWaitSemaphores failed: %s (%d), tick=%llu\n",
