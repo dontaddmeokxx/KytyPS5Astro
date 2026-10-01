@@ -711,22 +711,22 @@ if (fault_name == "eboot.bin") {
                 " (eboot.bin+0x%016" PRIx64 ")\n",
                 target_addr, kPlayroomCallTargetOffset);
 
-    if (IsReadableRange(target_addr - 64, 192)) {
-        const auto* code = reinterpret_cast<const uint8_t*>(target_addr - 64);
+   if (IsReadableRange(target_addr - 64, 1088)) {
+    const auto* code = reinterpret_cast<const uint8_t*>(target_addr - 64);
 
-        std::printf("Playroom call target code (-64 .. +128):\n");
-        for (int i = 0; i < 192; i++) {
-            if ((i % 16) == 0) {
-                std::printf("  +%04x: ", i - 64);
-            }
-
-            std::printf("%02x ", code[i]);
-
-            if ((i % 16) == 15) {
-                std::printf("\n");
-            }
+    std::printf("Playroom call target code (-64 .. +1024):\n");
+    for (int i = 0; i < 1088; i++) {
+        if ((i % 16) == 0) {
+            std::printf("  +%04x: ", i - 64);
         }
-    } else {
+
+        std::printf("%02x ", code[i]);
+
+        if ((i % 16) == 15) {
+            std::printf("\n");
+        }
+    }
+} else {
         std::printf("Playroom call target memory is not readable\n");
     }
 }
