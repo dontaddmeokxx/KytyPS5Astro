@@ -702,6 +702,34 @@ static bool KytyExceptionHandler(const Common::HostException::ExceptionInfo& exc
 			std::printf("fault module: %s\n", fault_name.c_str());
 			std::printf("fault module base: 0x%016" PRIx64 "\n", fault_program->base_vaddr);
 			std::printf("fault module offset: 0x%016" PRIx64 "\n", fault_offset);
+if (fault_name == "eboot.bin") {
+    constexpr uint64_t kPlayroomCallTargetOffset = 0x1b3dd20;
+    const uint64_t target_addr =
+        fault_program->base_vaddr + kPlayroomCallTargetOffset;
+
+    std::printf("Playroom call target: 0x%016" PRIx64
+                " (eboot.bin+0x%016" PRIx64 ")\n",
+                target_addr, kPlayroomCallTargetOffset);
+
+    if (IsReadableRange(target_addr - 64, 192)) {
+        const auto* code = reinterpret_cast<const uint8_t*>(target_addr - 64);
+
+        std::printf("Playroom call target code (-64 .. +128):\n");
+        for (int i = 0; i < 192; i++) {
+            if ((i % 16) == 0) {
+                std::printf("  +%04x: ", i - 64);
+            }
+
+            std::printf("%02x ", code[i]);
+
+            if ((i % 16) == 15) {
+                std::printf("\n");
+            }
+        }
+    } else {
+        std::printf("Playroom call target memory is not readable\n");
+    }
+}
 		} else {
 			std::printf("fault module: ???\n");
 		}
