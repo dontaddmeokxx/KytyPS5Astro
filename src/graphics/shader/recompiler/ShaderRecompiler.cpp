@@ -536,16 +536,14 @@ TranslateResult TranslateProgram(std::span<const uint32_t> code, const CompileOp
 	// Temporary workaround for games that compile ray-tracing shaders before
 	// the player can select a mode without ray tracing.
 	if (options.stage == ShaderType::Compute && decoded.has_bvh) {
-		static std::atomic_flag warned = ATOMIC_FLAG_INIT;
-		if (!warned.test_and_set(std::memory_order_relaxed)) {
-			const auto& bvh = decoded.instructions.back();
-			Log::WriteToConsoleAndLog(fmt::format(
-			    "Warning: ray tracing is not implemented; skipping compute dispatches containing "
-			    "BVH intersection instructions (shader=0x{:016x}, pc=0x{:08x}, opcode=0x{:02x}).\n",
-			    options.shader_hash, bvh.pc, bvh.opcode_id));
-		}
-		return {.skip_dispatch = true};
-	}
+        const auto& bvh = decoded.instructions.back();
+
+        Log::WriteToConsoleAndLog(fmt::format(
+            "PLAYROOM_BVH_SKIP shader=0x{:016x} pc=0x{:08x} opcode=0x{:02x}\n",
+            options.shader_hash, bvh.pc, bvh.opcode_id));
+
+        return {.skip_dispatch = true};
+}
 
 	std::string decoded_dump;
 	if (options.dump_ir) {
