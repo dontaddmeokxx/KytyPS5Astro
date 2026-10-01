@@ -688,8 +688,24 @@ static bool KytyExceptionHandler(const Common::HostException::ExceptionInfo& exc
 				std::snprintf(thread_name, sizeof(thread_name), "(unnamed guest thread)");
 			}
 		}
-		std::printf("--- Guest fault context ---\n");
+				std::printf("--- Guest fault context ---\n");
 		std::printf("thread: %s\n", thread_name);
+
+		auto* fault_program =
+		    Common::Singleton<RuntimeLinker>::Instance()->FindProgramByAddr(info->exception_address);
+
+		if (fault_program != nullptr) {
+			const auto fault_offset = info->exception_address - fault_program->base_vaddr;
+			const auto fault_name = Common::FilenameWithoutDirectory(
+			    Common::PathToGenericString(fault_program->file_name));
+
+			std::printf("fault module: %s\n", fault_name.c_str());
+			std::printf("fault module base: 0x%016" PRIx64 "\n", fault_program->base_vaddr);
+			std::printf("fault module offset: 0x%016" PRIx64 "\n", fault_offset);
+		} else {
+			std::printf("fault module: ???\n");
+		}
+
 		std::printf("rax=%016" PRIx64 " rbx=%016" PRIx64 " rcx=%016" PRIx64 " rdx=%016" PRIx64 "\n"
 		            "rsi=%016" PRIx64 " rdi=%016" PRIx64 " rbp=%016" PRIx64 " rsp=%016" PRIx64 "\n"
 		            "r8 =%016" PRIx64 " r9 =%016" PRIx64 " r10=%016" PRIx64 " r11=%016" PRIx64 "\n"
