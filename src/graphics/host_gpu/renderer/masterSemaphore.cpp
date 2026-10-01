@@ -11,6 +11,7 @@ namespace Libs::Graphics {
 namespace {
 
 void ReportDeviceFault(const GraphicContext& graphics) {
+        LOGF("DEVICE FAULT DIAGNOSTIC ENTERED\n");
         if (!graphics.device_fault_enabled) {
                 LOGF("device fault: VK_EXT_device_fault is not enabled, no detail available\n");
                 return;
@@ -130,3 +131,4 @@ void MasterSemaphore::Wait(uint64_t tick) {
 }
 
 } // namespace Libs::Graphics
+
