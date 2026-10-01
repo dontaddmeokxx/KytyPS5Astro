@@ -11,64 +11,65 @@ namespace Libs::Graphics {
 namespace {
 
 void ReportDeviceFault(const GraphicContext& graphics) {
-        LOGF("DEVICE FAULT DIAGNOSTIC ENTERED\n");
-        if (!graphics.device_fault_enabled) {
-                LOGF("device fault: VK_EXT_device_fault is not enabled, no detail available\n");
-                return;
-        }
+	LOGF("DEVICE FAULT DIAGNOSTIC ENTERED\n");
 
-        auto* get_info = reinterpret_cast<PFN_vkGetDeviceFaultInfoEXT>(
-            graphics.device.getProcAddr("vkGetDeviceFaultInfoEXT"));
+	if (!graphics.device_fault_enabled) {
+		LOGF("device fault: VK_EXT_device_fault is not enabled, no detail available\n");
+		return;
+	}
 
-        if (get_info == nullptr) {
-                LOGF("device fault: vkGetDeviceFaultInfoEXT is unavailable\n");
-                return;
-        }
+	auto* get_info = reinterpret_cast<PFN_vkGetDeviceFaultInfoEXT>(
+	    graphics.device.getProcAddr("vkGetDeviceFaultInfoEXT"));
 
-        VkDeviceFaultCountsEXT counts {};
-        counts.sType = VK_STRUCTURE_TYPE_DEVICE_FAULT_COUNTS_EXT;
+	if (get_info == nullptr) {
+		LOGF("device fault: vkGetDeviceFaultInfoEXT is unavailable\n");
+		return;
+	}
 
-        if (get_info(graphics.device, &counts, nullptr) != VK_SUCCESS) {
-                LOGF("device fault: counts query failed\n");
-                return;
-        }
+	VkDeviceFaultCountsEXT counts {};
+	counts.sType = VK_STRUCTURE_TYPE_DEVICE_FAULT_COUNTS_EXT;
 
-        std::vector<VkDeviceFaultAddressInfoEXT> addresses(counts.addressInfoCount);
-        std::vector<VkDeviceFaultVendorInfoEXT> vendors(counts.vendorInfoCount);
-        std::vector<uint8_t> binary(counts.vendorBinarySize);
+	if (get_info(graphics.device, &counts, nullptr) != VK_SUCCESS) {
+		LOGF("device fault: counts query failed\n");
+		return;
+	}
 
-        VkDeviceFaultInfoEXT info {};
-        info.sType             = VK_STRUCTURE_TYPE_DEVICE_FAULT_INFO_EXT;
-        info.pAddressInfos     = addresses.empty() ? nullptr : addresses.data();
-        info.pVendorInfos      = vendors.empty() ? nullptr : vendors.data();
-        info.pVendorBinaryData = binary.empty() ? nullptr : binary.data();
+	std::vector<VkDeviceFaultAddressInfoEXT> addresses(counts.addressInfoCount);
+	std::vector<VkDeviceFaultVendorInfoEXT> vendors(counts.vendorInfoCount);
+	std::vector<uint8_t> binary(counts.vendorBinarySize);
 
-        if (get_info(graphics.device, &counts, &info) != VK_SUCCESS) {
-                LOGF("device fault: info query failed\n");
-                return;
-        }
+	VkDeviceFaultInfoEXT info {};
+	info.sType             = VK_STRUCTURE_TYPE_DEVICE_FAULT_INFO_EXT;
+	info.pAddressInfos     = addresses.empty() ? nullptr : addresses.data();
+	info.pVendorInfos      = vendors.empty() ? nullptr : vendors.data();
+	info.pVendorBinaryData = binary.empty() ? nullptr : binary.data();
 
-        LOGF("--- Device fault --- %s\n", info.description);
+	if (get_info(graphics.device, &counts, &info) != VK_SUCCESS) {
+		LOGF("device fault: info query failed\n");
+		return;
+	}
 
-        for (uint32_t i = 0; i < counts.addressInfoCount; i++) {
-                const auto& a = addresses[i];
-                LOGF("  address[%u]: type=%u reported=0x%016llx precision=0x%016llx\n",
-                     i, static_cast<uint32_t>(a.addressType),
-                     static_cast<unsigned long long>(a.reportedAddress),
-                     static_cast<unsigned long long>(a.addressPrecision));
-        }
+	LOGF("--- Device fault --- %s\n", info.description);
 
-        for (uint32_t i = 0; i < counts.vendorInfoCount; i++) {
-                const auto& v = vendors[i];
-                LOGF("  vendor[%u]: %s code=%llu data=%llu\n",
-                     i, v.description,
-                     static_cast<unsigned long long>(v.vendorFaultCode),
-                     static_cast<unsigned long long>(v.vendorFaultData));
-        }
+	for (uint32_t i = 0; i < counts.addressInfoCount; i++) {
+		const auto& a = addresses[i];
+		LOGF("  address[%u]: type=%u reported=0x%016llx precision=0x%016llx\n",
+		     i, static_cast<uint32_t>(a.addressType),
+		     static_cast<unsigned long long>(a.reportedAddress),
+		     static_cast<unsigned long long>(a.addressPrecision));
+	}
 
-        if (counts.addressInfoCount == 0 && counts.vendorInfoCount == 0) {
-                LOGF("  (driver reported no address or vendor detail)\n");
-        }
+	for (uint32_t i = 0; i < counts.vendorInfoCount; i++) {
+		const auto& v = vendors[i];
+		LOGF("  vendor[%u]: %s code=%llu data=%llu\n",
+		     i, v.description,
+		     static_cast<unsigned long long>(v.vendorFaultCode),
+		     static_cast<unsigned long long>(v.vendorFaultData));
+	}
+
+	if (counts.addressInfoCount == 0 && counts.vendorInfoCount == 0) {
+		LOGF("  (driver reported no address or vendor detail)\n");
+	}
 }
 
 } // namespace
@@ -107,7 +108,9 @@ void MasterSemaphore::Wait(uint64_t tick) {
 	if (IsFree(tick)) {
 		return;
 	}
+
 	Refresh();
+
 	if (IsFree(tick)) {
 		return;
 	}
@@ -118,17 +121,25 @@ void MasterSemaphore::Wait(uint64_t tick) {
 	wait_info.pValues        = &tick;
 
 	const auto result = m_graphics.device.waitSemaphores(&wait_info, UINT64_MAX);
+
 	if (result == vk::Result::eErrorDeviceLost) {
+		LOGF("!!!!!!!! DEVICE LOST DETECTED - CALLING DEVICE FAULT !!!!!!!!\n");
+		Log::Flush();
+
 		ReportDeviceFault(m_graphics);
+
+		LOGF("!!!!!!!! DEVICE FAULT REPORT FINISHED !!!!!!!!\n");
 		Log::Flush();
 	}
+
 	if (result != vk::Result::eSuccess) {
 		EXIT("MasterSemaphore::Wait: vkWaitSemaphores failed: %s (%d), tick=%llu\n",
-		     vk::to_string(result).c_str(), static_cast<int>(result),
+		     vk::to_string(result).c_str(),
+		     static_cast<int>(result),
 		     static_cast<unsigned long long>(tick));
 	}
+
 	Refresh();
 }
 
 } // namespace Libs::Graphics
-
