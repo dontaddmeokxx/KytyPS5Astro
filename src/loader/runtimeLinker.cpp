@@ -924,6 +924,14 @@ static bool RelocateRecord(uint32_t index, Elf64_Rela* r, Program* program, bool
 	auto       value   = ri.value;
 	bool       stubbed = false;
 	if (!ri.resolved) {
+            LOGF("UNRESOLVED IMPORT: index=%u name=%s type=%s bind=%s module=%s\n",
+                 index,
+                 ri.name.c_str(),
+                 magic_enum::enum_name(ri.type).data(),
+                 magic_enum::enum_name(ri.bind).data(),
+                 Common::PathToString(program->file_name).c_str());
+
+    const bool weak = ri.bind == BindType::Weak || !program->fail_if_global_not_resolved;
 		const bool weak = ri.bind == BindType::Weak || !program->fail_if_global_not_resolved;
 		if (!weak) {
 			LOGF("Stubbed: %s\n",
