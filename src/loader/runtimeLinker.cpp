@@ -993,7 +993,26 @@ static KYTY_MS_ABI uint8_t* TlsMainGetAddr() {
 static void PatchProgram(Program* program, uint64_t address, uint64_t size) {
 	EXIT_IF(program == nullptr);
 	EXIT_IF(program->elf == nullptr);
+if (!program->elf->IsShared()) {
+    const auto program_name =
+        Common::FilenameWithoutDirectory(Common::PathToGenericString(program->file_name));
 
+    constexpr uint64_t kPlayroomInt41Offset = 0x19097f0;
+
+    if (program_name == "eboot.bin" &&
+        address <= program->base_vaddr + kPlayroomInt41Offset &&
+        address + size >= program->base_vaddr + kPlayroomInt41Offset + 2) {
+
+        auto* int41 = reinterpret_cast<uint8_t*>(
+            program->base_vaddr + kPlayroomInt41Offset);
+
+        if (int41[0] == 0xcd && int41[1] == 0x41) {
+            LOGF("Playroom: patch INT 0x41 at eboot.bin+0x19097f0\n");
+            int41[0] = 0x90;
+            int41[1] = 0x90;
+        }
+    }
+}
 	if (size >= 12) {
 		// Replace guest stack-canary/errno stores through fs:[0x28] with nops.
 		// Windows x64 cannot host guest FS directly, and an unpatched shared-library access faults
