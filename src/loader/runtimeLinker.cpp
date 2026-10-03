@@ -739,7 +739,6 @@ if (fault_name == "eboot.bin" && fault_offset == 0x19099b8) {
             std::printf("object 0x%016" PRIx64 " unreadable\n", addr);
         }
     }
-}
 
     std::printf("--- Playroom fault pointer chain ---\n");
 
