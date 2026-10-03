@@ -702,8 +702,47 @@ static bool KytyExceptionHandler(const Common::HostException::ExceptionInfo& exc
 			std::printf("fault module: %s\n", fault_name.c_str());
 			std::printf("fault module base: 0x%016" PRIx64 "\n", fault_program->base_vaddr);
 			std::printf("fault module offset: 0x%016" PRIx64 "\n", fault_offset);
+
+if (fault_name == "eboot.bin" && fault_offset == 0x19099b8) {
+    std::printf("--- Playroom exact fault diagnostic ---\n");
+    std::printf("fault pc: 0x%016" PRIx64 "\n", info->exception_address);
+    std::printf("access type: %u\n",
+                static_cast<unsigned>(info->access_violation_type));
+    std::printf("access address: 0x%016" PRIx64 "\n",
+                info->access_violation_vaddr);
+
+    std::printf("candidate objects:\n");
+    std::printf(" rbx=0x%016" PRIx64 "\n", info->rbx);
+    std::printf(" rdi=0x%016" PRIx64 "\n", info->rdi);
+    std::printf(" r12=0x%016" PRIx64 "\n", info->r12);
+    std::printf(" r13=0x%016" PRIx64 "\n", info->r13);
+    std::printf(" r14=0x%016" PRIx64 "\n", info->r14);
+    std::printf(" r15=0x%016" PRIx64 "\n", info->r15);
+
+    const uint64_t candidates[] = {
+        info->rbx, info->rdi, info->r12,
+        info->r13, info->r14, info->r15
+    };
+
+    for (const auto addr: candidates) {
+        if (IsReadableRange(addr, 0x80)) {
+            const auto* p = reinterpret_cast<const uint64_t*>(addr);
+
+            std::printf("object 0x%016" PRIx64 ":", addr);
+            for (int i = 0; i < 16; i++) {
+                std::printf("%s+%02x=%016" PRIx64,
+                            (i % 4 == 0) ? "\n  " : " ",
+                            i * 8, p[i]);
+            }
+            std::printf("\n");
+        } else {
+            std::printf("object 0x%016" PRIx64 " unreadable\n", addr);
+        }
+    }
+}
+
 if (fault_name == "eboot.bin") {
-    constexpr uint64_t kPlayroomCallTargetOffset = 0x1b3dd20;
+constexpr uint64_t kPlayroomCallTargetOffset = 0x1b3dd20;
     const uint64_t target_addr =
         fault_program->base_vaddr + kPlayroomCallTargetOffset;
 
