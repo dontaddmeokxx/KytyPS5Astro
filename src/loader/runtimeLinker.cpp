@@ -142,6 +142,17 @@ static bool PatchGuestMemory64(uint64_t vaddr, uint64_t value) {
 	return changed;
 }
 
+static bool PatchGuestMemoryBytes(uint64_t vaddr, const uint8_t* bytes, size_t size) {
+	if (vaddr == 0 || bytes == nullptr || size == 0) {
+		return false;
+	}
+
+	std::memcpy(reinterpret_cast<void*>(vaddr), bytes, size);
+
+	Common::VirtualMemory::FlushInstructionCache(vaddr, size);
+	return true;
+}
+
 static uint64_t AllocateUnresolvedImportThunk(uint64_t record_id) {
 	constexpr uint64_t thunk_size = 34;
 
