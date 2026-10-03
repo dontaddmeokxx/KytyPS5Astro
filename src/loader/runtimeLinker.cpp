@@ -740,9 +740,9 @@ if (fault_name == "eboot.bin" && fault_offset == 0x19099b8) {
         }
     }
 
-    std::printf("--- Playroom fault pointer chain ---\n");
+    std::printf("--- Playroom RDI pointer chain ---\n");
 
-    const uint64_t object_addr = info->rbx;
+    const uint64_t object_addr = info->rdi;
 
     if (IsReadableRange(object_addr, 0x38)) {
         const auto* object =
@@ -751,31 +751,42 @@ if (fault_name == "eboot.bin" && fault_offset == 0x19099b8) {
         const uint64_t ptr00 = object[0];
         const uint64_t ptr30 = object[6];
 
-        std::printf("rbx object: 0x%016" PRIx64 "\n", object_addr);
-        std::printf(" [rbx+00] = 0x%016" PRIx64 "\n", ptr00);
-        std::printf(" [rbx+30] = 0x%016" PRIx64 "\n", ptr30);
+        std::printf("rdi object: 0x%016" PRIx64 "\n", object_addr);
+        std::printf(" [rdi+00] = 0x%016" PRIx64 "\n", ptr00);
+        std::printf(" [rdi+30] = 0x%016" PRIx64 "\n", ptr30);
 
         if (IsReadableRange(ptr00, 0x90)) {
             const auto* p =
                 reinterpret_cast<const uint64_t*>(ptr00);
 
-            std::printf(" [rbx+00]+00 = 0x%016" PRIx64 "\n", p[0]);
-            std::printf(" [rbx+00]+80 = 0x%016" PRIx64 "\n", p[16]);
+            std::printf(" [rdi+00]+00 = 0x%016" PRIx64 "\n", p[0]);
+            std::printf(" [rdi+00]+80 = 0x%016" PRIx64 "\n", p[16]);
         } else {
-            std::printf(" [rbx+00] target unreadable\n");
+            std::printf(" [rdi+00] target unreadable\n");
         }
 
-        if (IsReadableRange(ptr30, 0x90)) {
+        if (IsReadableRange(ptr30, 0x08)) {
             const auto* p =
                 reinterpret_cast<const uint64_t*>(ptr30);
 
-            std::printf(" [rbx+30]+00 = 0x%016" PRIx64 "\n", p[0]);
-            std::printf(" [rbx+30]+80 = 0x%016" PRIx64 "\n", p[16]);
+            const uint64_t ptr30_00 = p[0];
+
+            std::printf(" [rdi+30]+00 = 0x%016" PRIx64 "\n", ptr30_00);
+
+            if (IsReadableRange(ptr30_00, 0x88)) {
+                const auto* q =
+                    reinterpret_cast<const uint64_t*>(ptr30_00);
+
+                std::printf(" [[rdi+30]+00]+00 = 0x%016" PRIx64 "\n", q[0]);
+                std::printf(" [[rdi+30]+00]+80 = 0x%016" PRIx64 "\n", q[16]);
+            } else {
+                std::printf(" [rdi+30]+00 target unreadable\n");
+            }
         } else {
-            std::printf(" [rbx+30] target unreadable\n");
+            std::printf(" [rdi+30] target unreadable\n");
         }
     } else {
-        std::printf("rbx object unreadable\n");
+        std::printf("rdi object unreadable\n");
     }
 }
 
