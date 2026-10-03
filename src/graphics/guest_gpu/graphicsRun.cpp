@@ -222,16 +222,36 @@ void GuestGpu::ProcessCommands() {
 
 void GuestGpu::SendCommandSync(Common::UniqueFunction<void>&& command) {
 	EXIT_IF(!command);
+
 	if (IsGpuThread()) {
 		command();
 		return;
 	}
+
 	std::binary_semaphore done {0};
+
+	LOGF("GPU SYNC: queued command\n");
+	Log::Flush();
+
 	SendCommand([operation = std::move(command), &done]() mutable {
+		LOGF("GPU SYNC: command BEGIN on GPU thread\n");
+		Log::Flush();
+
 		operation();
+
+		LOGF("GPU SYNC: command END on GPU thread\n");
+		Log::Flush();
+
 		done.release();
 	});
+
+	LOGF("GPU SYNC: caller waiting\n");
+	Log::Flush();
+
 	done.acquire();
+
+	LOGF("GPU SYNC: caller released\n");
+	Log::Flush();
 }
 
 void GuestGpu::Submit(std::span<const uint32_t> draw_commands,
