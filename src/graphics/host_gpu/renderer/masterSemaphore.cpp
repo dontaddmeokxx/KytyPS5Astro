@@ -120,7 +120,44 @@ void MasterSemaphore::Wait(uint64_t tick) {
 	wait_info.pSemaphores    = &m_semaphore;
 	wait_info.pValues        = &tick;
 
-	const auto result = m_graphics.device.waitSemaphores(&wait_info, UINT64_MAX);
+	LOGF("MASTER WAIT BEGIN: tick=%llu known_gpu_tick=%llu current_tick=%llu\n",
+     static_cast<unsigned long long>(tick),
+     static_cast<unsigned long long>(KnownGpuTick()),
+     static_cast<unsigned long long>(CurrentTick()));
+Log::Flush();
+
+const auto result = m_graphics.device.waitSemaphores(
+    &wait_info,
+    5'000'000'000ULL); // 5-second diagnostic timeout
+
+if (result == vk::Result::eTimeout) {
+        Refresh();
+
+        LOGF("!!!!!!!! MASTER WAIT TIMEOUT !!!!!!!! requested=%llu known_gpu_tick=%llu current_tick=%llu\n",
+             static_cast<unsigned long long>(tick),
+             static_cast<unsigned long long>(KnownGpuTick()),
+             static_cast<unsigned long long>(CurrentTick()));
+        Log::Flush();
+
+        // Keep the emulator's normal waiting behavior after recording the stall.
+        const auto retry_result =
+            m_graphics.device.waitSemaphores(&wait_info, UINT64_MAX);
+
+        if (retry_result != vk::Result::eSuccess) {
+                EXIT("MasterSemaphore::Wait retry failed: %s (%d), tick=%llu\n",
+                     vk::to_string(retry_result).c_str(),
+                     static_cast<int>(retry_result),
+                     static_cast<unsigned long long>(tick));
+        }
+
+        Refresh();
+        return;
+}
+
+LOGF("MASTER WAIT END: tick=%llu result=%s\n",
+     static_cast<unsigned long long>(tick),
+     vk::to_string(result).c_str());
+Log::Flush();
 
 	if (result == vk::Result::eErrorDeviceLost) {
 		LOGF("!!!!!!!! DEVICE LOST DETECTED - CALLING DEVICE FAULT !!!!!!!!\n");
