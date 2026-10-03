@@ -949,8 +949,21 @@ Pm4ProcessResult CommandProcessor::Process(Pm4Execution&             execution,
 		m_submission_created_start = created;
 	}
 
-	ProcessPm4(execution);
-	DrainStats::SetPm4Op(DrainStats::NoPm4Op);
+LOGF("!!!!!!!! PM4 PROCESS BEGIN !!!!!!!! submit=%llu depth=%zu\n",
+     static_cast<unsigned long long>(m_submit_id),
+     execution.m_buffer_stack.size());
+Log::Flush();
+
+ProcessPm4(execution);
+
+LOGF("!!!!!!!! PM4 PROCESS END !!!!!!!! submit=%llu depth=%zu suspended=%d\n",
+     static_cast<unsigned long long>(m_submit_id),
+     execution.m_buffer_stack.size(),
+     execution.m_suspended ? 1 : 0);
+Log::Flush();
+
+DrainStats::SetPm4Op(DrainStats::NoPm4Op);
+
 	if (execution.m_buffer_stack.empty()) {
 		m_last_submission_created = pipelines.GraphicsPipelinesCreated() +
 		                            pipelines.ComputePipelinesCreated() -
